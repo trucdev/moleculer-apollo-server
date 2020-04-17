@@ -8,6 +8,7 @@
 
 const _ = require("lodash");
 const { MoleculerServerError } = require("moleculer").Errors;
+const { mergeTypes } = require("merge-graphql-schemas");
 const { ApolloServer } = require("./ApolloServer");
 const DataLoader = require("dataloader");
 const { makeExecutableSchema } = require("graphql-tools");
@@ -338,15 +339,6 @@ module.exports = function(mixinOptions) {
 						schemaDirectives = _.cloneDeep(mixinOptions.schemaDirectives);
 					}
 
-					let queries = [];
-					let mutations = [];
-					let subscriptions = [];
-					let types = [];
-					let interfaces = [];
-					let unions = [];
-					let enums = [];
-					let inputs = [];
-
 					const processedServices = new Set();
 
 					services.forEach(service => {
@@ -361,36 +353,8 @@ module.exports = function(mixinOptions) {
 							if (_.isObject(service.settings.graphql)) {
 								const globalDef = service.settings.graphql;
 
-								if (globalDef.query) {
-									queries = queries.concat(globalDef.query);
-								}
-
-								if (globalDef.mutation) {
-									mutations = mutations.concat(globalDef.mutation);
-								}
-
-								if (globalDef.subscription) {
-									subscriptions = subscriptions.concat(globalDef.subscription);
-								}
-
-								if (globalDef.type) {
-									types = types.concat(globalDef.type);
-								}
-
-								if (globalDef.interface) {
-									interfaces = interfaces.concat(globalDef.interface);
-								}
-
-								if (globalDef.union) {
-									unions = unions.concat(globalDef.union);
-								}
-
-								if (globalDef.enum) {
-									enums = enums.concat(globalDef.enum);
-								}
-
-								if (globalDef.input) {
-									inputs = inputs.concat(globalDef.input);
+								if (globalDef.typeDefs) {
+									typeDefs = typeDefs.concat(globalDef.typeDefs);
 								}
 
 								if (globalDef.resolvers) {
@@ -419,7 +383,6 @@ module.exports = function(mixinOptions) {
 
 									_.castArray(def.query).forEach(query => {
 										const name = this.getFieldName(query);
-										queries.push(query);
 										resolver.Query[name] = this.createActionResolver(
 											action.name
 										);
@@ -431,7 +394,6 @@ module.exports = function(mixinOptions) {
 
 									_.castArray(def.mutation).forEach(mutation => {
 										const name = this.getFieldName(mutation);
-										mutations.push(mutation);
 										resolver.Mutation[name] = this.createActionResolver(
 											action.name,
 											{
@@ -446,7 +408,6 @@ module.exports = function(mixinOptions) {
 
 									_.castArray(def.subscription).forEach(subscription => {
 										const name = this.getFieldName(subscription);
-										subscriptions.push(subscription);
 										resolver.Subscription[
 											name
 										] = this.createAsyncIteratorResolver(
@@ -456,26 +417,6 @@ module.exports = function(mixinOptions) {
 										);
 									});
 								}
-
-								if (def.type) {
-									types = types.concat(def.type);
-								}
-
-								if (def.interface) {
-									interfaces = interfaces.concat(def.interface);
-								}
-
-								if (def.union) {
-									unions = unions.concat(def.union);
-								}
-
-								if (def.enum) {
-									enums = enums.concat(def.enum);
-								}
-
-								if (def.input) {
-									inputs = inputs.concat(def.input);
-								}
 							}
 						});
 
@@ -484,75 +425,11 @@ module.exports = function(mixinOptions) {
 						}
 					});
 
-					if (
-						queries.length > 0 ||
-						types.length > 0 ||
-						mutations.length > 0 ||
-						subscriptions.length > 0 ||
-						interfaces.length > 0 ||
-						unions.length > 0 ||
-						enums.length > 0 ||
-						inputs.length > 0
-					) {
-						let str = "";
-						if (queries.length > 0) {
-							str += `
-								type Query {
-									${queries.join("\n")}
-								}
-							`;
-						}
-
-						if (mutations.length > 0) {
-							str += `
-								type Mutation {
-									${mutations.join("\n")}
-								}
-							`;
-						}
-
-						if (subscriptions.length > 0) {
-							str += `
-								type Subscription {
-									${subscriptions.join("\n")}
-								}
-							`;
-						}
-
-						if (types.length > 0) {
-							str += `
-								${types.join("\n")}
-							`;
-						}
-
-						if (interfaces.length > 0) {
-							str += `
-								${interfaces.join("\n")}
-							`;
-						}
-
-						if (unions.length > 0) {
-							str += `
-								${unions.join("\n")}
-							`;
-						}
-
-						if (enums.length > 0) {
-							str += `
-								${enums.join("\n")}
-							`;
-						}
-
-						if (inputs.length > 0) {
-							str += `
-								${inputs.join("\n")}
-							`;
-						}
-
-						typeDefs.push(str);
-					}
-
-					return makeExecutableSchema({ typeDefs, resolvers, schemaDirectives });
+					return makeExecutableSchema({
+						typeDefs: mergeTypes(typeDefs, { all: true }),
+						resolvers,
+						schemaDirectives,
+					});
 				} catch (err) {
 					throw new MoleculerServerError(
 						"Unable to compile GraphQL schema",

@@ -77,6 +77,7 @@
     "graphql-tools": "^4.0.7",
     "graphql-upload": "^10.0.0",
     "lodash": "^4.17.15",
+    "merge-graphql-schemas": "^1.7.8",
     "object-hash": "^2.0.3"
   }
 }
