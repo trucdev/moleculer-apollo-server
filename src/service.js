@@ -498,6 +498,11 @@ module.exports = function(mixinOptions) {
 						schema: GraphQL.printSchema(schema),
 					});
 				} catch (err) {
+					const data = err.data.err.toString();
+					this.broker.broadcast("apollo.server.error", {
+						message: err.message,
+						data,
+					});
 					this.logger.error(err);
 					throw err;
 				}
